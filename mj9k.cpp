@@ -158,8 +158,8 @@ bool mj9k::get_button(mj9k::Button p_button) const {
 
 Vector2 mj9k::get_aiming() const {
         return Vector2(
-                (double)status_in.aimingX / (double)0x7FFF,
-                (double)status_in.aimingY / (double)0x7FFF
+                (double)status_in.aimingX / (double)0xFFFF,
+                (double)status_in.aimingY / (double)0xFFFF
         );
 }
 
