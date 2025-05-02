@@ -14,7 +14,6 @@ mj9k::Error error;
 int usb_ret;
 bool libusb_initialized = false;
 
-bool is_mj9k;
 libusb_device_handle * controller = NULL;
 
 bool mj9k::is_connected() {
@@ -34,7 +33,6 @@ bool mj9k::is_connected() {
 	}
 
 	libusb_device * dev = NULL, ** dev_list;
-	is_mj9k = false;
 	ssize_t dev_count = libusb_get_device_list(NULL, &dev_list);
 	for (int i = 0; i < dev_count; i++) {
 		struct libusb_device_descriptor dev_desc;
@@ -47,10 +45,7 @@ bool mj9k::is_connected() {
 
 		if (dev_desc.idVendor == MJ9K_VID && dev_desc.idProduct == MJ9K_PID) {
 			dev = dev_list[i];
-			is_mj9k = true;
-		} else if (dev_desc.idVendor == XBOX_VID && dev_desc.idProduct == XBOX_PID && !is_mj9k) {
-			// Only attempt to use the generic XBOX controller if a MJ9K could not be found
-			dev = dev_list[i];
+			break;
 		}
 	}
 
@@ -95,7 +90,7 @@ bool mj9k::send_lights() {
 	}
 
 	int transfered;
-	usb_ret = libusb_interrupt_transfer(controller, is_mj9k ? MJ9K_OUT : MJ9K_OUT,
+	usb_ret = libusb_interrupt_transfer(controller, MJ9K_OUT,
 		(unsigned char *)&status_out, sizeof(mj9k_out_report), &transfered, MJ9K_TIMEOUT);
 
 	if (!usb_ret) {
@@ -113,15 +108,15 @@ bool mj9k::send_lights() {
 }
 
 bool mj9k::recieve_input() {
-    if (!libusb_initialized) return false;
+        if (!libusb_initialized) return false;
 
-    if (!controller) {
-        error = ERROR_NO_DEVICE;
-        return false;
-    }
+        if (!controller) {
+            error = ERROR_NO_DEVICE;
+            return false;
+        }
 
 	int transfered;
-	usb_ret = libusb_interrupt_transfer(controller, is_mj9k ? MJ9K_IN : XBOX_IN,
+	usb_ret = libusb_interrupt_transfer(controller, MJ9K_IN,
 		(unsigned char *)&status_in, sizeof(mj9k_in_report), &transfered, MJ9K_TIMEOUT);
 
 	if (!usb_ret) {
@@ -138,11 +133,14 @@ bool mj9k::recieve_input() {
 	return true;
 }
 
-void mj9k::set_light(mj9k::Light p_light, int32_t p_brightness){
-    uint8_t * light = status_out.lights + (unsigned int)p_light / 2;
+void mj9k::set_light(mj9k::Light p_light, int32_t p_brightness) {
+        unsigned int light_idx = p_light;
+        if (light_idx >= MJ9K_LIGHT_COUNT) return;
+
+        uint8_t * light = status_out.lights + light_idx / 2;
 	uint8_t value = p_brightness & 0xF;
 	
-	if ((unsigned int)p_light % 2) {
+	if (light_idx % 2) {
 	    *light = (value << 4) | (*light & 0xF);
 	} else {
 	    *light = value | (*light & 0xF0);
@@ -150,8 +148,11 @@ void mj9k::set_light(mj9k::Light p_light, int32_t p_brightness){
 }
 
 bool mj9k::get_button(mj9k::Button p_button) const {
-	int button_offset = (unsigned int)p_button / 16;
-	uint16_t button_mask = 1 << ((unsigned int)p_button % 16);
+        unsigned int button_idx = p_button;
+        if (button_idx >= MJ9K_BUTTON_COUNT) return false;
+
+	unsigned int button_offset = button_idx / 16;
+	uint16_t button_mask = 1 << (button_idx % 16);
 
 	return status_in.buttons[button_offset] & button_mask;
 }
@@ -175,19 +176,11 @@ Vector2 mj9k::get_sight() const {
 }
 
 double mj9k::get_pedal(mj9k::Pedal p_pedal) const {
-	double value;
+	double value = 0.0;
 	switch (p_pedal) {
-	case PEDAL_ACCEL:
-		value = status_in.accelPedal;
-	break;
-	case PEDAL_BRAKE:
-		value = status_in.brakePedal;
-	break;
-	case PEDAL_SLIDE:
-		value = status_in.slidePedal;
-	break;
-	default:
-		return 0.0;
+	case PEDAL_ACCEL: value = status_in.accelPedal; break;
+	case PEDAL_BRAKE: value = status_in.brakePedal; break;
+	case PEDAL_SLIDE: value = status_in.slidePedal;	break;
 	}
 
 	return value / (double)0xFFFF;
@@ -251,15 +244,15 @@ void mj9k::_bind_methods() {
 	
 	BIND_ENUM_CONSTANT(BUTTON_FIRE_MAIN);
 	BIND_ENUM_CONSTANT(BUTTON_FIRE_SUB);
-    BIND_ENUM_CONSTANT(BUTTON_LOCK_ON);
-    BIND_ENUM_CONSTANT(BUTTON_EJECT);
-    BIND_ENUM_CONSTANT(BUTTON_HATCH);
-    BIND_ENUM_CONSTANT(BUTTON_IGNITION);
-    BIND_ENUM_CONSTANT(BUTTON_START);
-	BIND_ENUM_CONSTANT(BUTTON_MAP_TOGGLE);
-	BIND_ENUM_CONSTANT(BUTTON_MAP_ZOOM);
-	BIND_ENUM_CONSTANT(BUTTON_MODE_SELECT);
-	BIND_ENUM_CONSTANT(BUTTON_SUB_MODE_SELECT);
+        BIND_ENUM_CONSTANT(BUTTON_LOCK_ON);
+        BIND_ENUM_CONSTANT(BUTTON_EJECT);
+        BIND_ENUM_CONSTANT(BUTTON_HATCH);
+        BIND_ENUM_CONSTANT(BUTTON_IGNITION);
+        BIND_ENUM_CONSTANT(BUTTON_START);
+	BIND_ENUM_CONSTANT(BUTTON_MULTI_TOGGLE);
+	BIND_ENUM_CONSTANT(BUTTON_MULTI_ZOOM);
+	BIND_ENUM_CONSTANT(BUTTON_MULTI_MODE);
+	BIND_ENUM_CONSTANT(BUTTON_SUB_MODE);
 	BIND_ENUM_CONSTANT(BUTTON_ZOOM_IN);
 	BIND_ENUM_CONSTANT(BUTTON_ZOOM_OUT);
 	BIND_ENUM_CONSTANT(BUTTON_FSS);
@@ -294,10 +287,10 @@ void mj9k::_bind_methods() {
 	BIND_ENUM_CONSTANT(LIGHT_HATCH);
 	BIND_ENUM_CONSTANT(LIGHT_IGNITION);
 	BIND_ENUM_CONSTANT(LIGHT_START);
-	BIND_ENUM_CONSTANT(LIGHT_MAP_TOGGLE);
-	BIND_ENUM_CONSTANT(LIGHT_MAP_ZOOM);
-	BIND_ENUM_CONSTANT(LIGHT_MODE_SELECT);
-	BIND_ENUM_CONSTANT(LIGHT_SUB_MODE_SELECT);
+	BIND_ENUM_CONSTANT(LIGHT_MULTI_TOGGLE);
+	BIND_ENUM_CONSTANT(LIGHT_MULTI_ZOOM);
+	BIND_ENUM_CONSTANT(LIGHT_MULTI_MODE);
+	BIND_ENUM_CONSTANT(LIGHT_SUB_MODE);
 	BIND_ENUM_CONSTANT(LIGHT_ZOOM_IN);
 	BIND_ENUM_CONSTANT(LIGHT_ZOOM_OUT);
 	BIND_ENUM_CONSTANT(LIGHT_FSS);
@@ -348,7 +341,7 @@ void uninitialize_mj9k_module(ModuleInitializationLevel p_level) {
 	Engine::get_singleton()->unregister_singleton("mj9k");
 	memdelete(mj9k_singleton);
 
-    if (controller) {
+        if (controller) {
 		libusb_release_interface(controller, 0);
 		libusb_close(controller);
 	}

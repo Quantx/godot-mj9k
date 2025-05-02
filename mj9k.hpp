@@ -13,6 +13,8 @@
 namespace godot {
 
 #define MJ9K_SHIFTER_OFFSET 7
+#define MJ9K_LIGHT_COUNT 40
+#define MJ9K_BUTTON_COUNT 48
 
 #define MJ9K_TIMEOUT 10
 
@@ -31,7 +33,7 @@ namespace godot {
 typedef struct __attribute__((packed)) {
 	uint8_t zero;
 	uint8_t bLength;
-	uint16_t buttons[3];
+	uint16_t buttons[MJ9K_BUTTON_COUNT / 16];
 	uint16_t aimingX;	//0 to 0xFFFF left to right
 	uint16_t aimingY;	//0 to 0xFFFF top to bottom
 	int16_t turningLever;
@@ -47,7 +49,7 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
 	uint8_t zero;
 	uint8_t bLength;
-	uint8_t lights[20];
+	uint8_t lights[MJ9K_LIGHT_COUNT / 2];
 /*
 	uint8_t CockpitHatch_EmergencyEject;
 	uint8_t Start_Ignition;
@@ -98,10 +100,10 @@ public:
 		BUTTON_HATCH,
 		BUTTON_IGNITION,
 		BUTTON_START,
-		BUTTON_MAP_TOGGLE,
-		BUTTON_MAP_ZOOM,
-		BUTTON_MODE_SELECT,
-		BUTTON_SUB_MODE_SELECT,
+		BUTTON_MULTI_TOGGLE,
+		BUTTON_MULTI_ZOOM,
+		BUTTON_MULTI_MODE,
+		BUTTON_SUB_MODE,
 		BUTTON_ZOOM_IN,
 		BUTTON_ZOOM_OUT,
 		BUTTON_FSS,
@@ -138,10 +140,10 @@ public:
 		LIGHT_HATCH,
 		LIGHT_IGNITION,
 		LIGHT_START,
-		LIGHT_MAP_TOGGLE,
-		LIGHT_MAP_ZOOM,
-		LIGHT_MODE_SELECT,
-		LIGHT_SUB_MODE_SELECT,
+		LIGHT_MULTI_TOGGLE,
+		LIGHT_MULTI_ZOOM,
+		LIGHT_MULTI_MODE,
+		LIGHT_SUB_MODE,
 		LIGHT_ZOOM_IN,
 		LIGHT_ZOOM_OUT,
 		LIGHT_FSS,
