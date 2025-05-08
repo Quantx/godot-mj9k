@@ -182,7 +182,8 @@ public:
 	bool recieve_input();
 
 	// Error handling
-	String get_error() const;
+	mj9k::Error get_error_code() const;
+	String get_error_string() const;
 	String get_libusb_error() const;
 
 	// Setting lights

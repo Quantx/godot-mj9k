@@ -205,7 +205,11 @@ int mj9k::get_shifter() const {
 	return status_in.shifter;
 }
 
-String mj9k::get_error() const {
+mj9k::Error mj9k::get_error_code() const {
+        return error;
+}
+
+String mj9k::get_error_string() const {
 	switch (error) {
 	case ERROR_NO_DEVICE: return "A MJ9K is not connected";
 	case ERROR_BAD_RX: return "Failed to recieve all bytes from MJ9K";
@@ -227,7 +231,8 @@ void mj9k::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("send_lights"), &mj9k::send_lights);
 	ClassDB::bind_method(D_METHOD("recieve_input"), &mj9k::recieve_input);
 
-	ClassDB::bind_method(D_METHOD("get_error"), &mj9k::get_error);
+        ClassDB::bind_method(D_METHOD("get_error_code"), &mj9k::get_error_code);
+	ClassDB::bind_method(D_METHOD("get_error_string"), &mj9k::get_error_string);
 	ClassDB::bind_method(D_METHOD("get_libusb_error"), &mj9k::get_libusb_error);
 
 	ClassDB::bind_method(D_METHOD("set_light", "light", "brightness"), &mj9k::set_light);
