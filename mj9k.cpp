@@ -17,19 +17,14 @@ bool libusb_initialized = false;
 libusb_device_handle * controller = NULL;
 
 bool mj9k::is_connected() {
-	if (!libusb_initialized) return false;
+	if (!libusb_initialized) {
+	        error = ERROR_LIBUSB_INIT;
+	        return false;
+	}
 
 	if (controller) {
-		// This is the only non-blocking way to detect if the USB device is still connected
-		usb_ret = libusb_claim_interface(controller, 0);
-		if (usb_ret == LIBUSB_SUCCESS) {
-			error = ERROR_OKAY;
-			return true;
-		}
-
-		// Close the old device, before attempting to open a new one
-		libusb_close(controller);
-		controller = NULL;
+	        error = ERROR_OKAY;
+	        return true;
 	}
 
 	libusb_device * dev = NULL, ** dev_list;
@@ -82,7 +77,10 @@ bool mj9k::is_connected() {
 }
 
 bool mj9k::send_lights() {
-	if (!libusb_initialized) return false;
+	if (!libusb_initialized) {
+	        error = ERROR_LIBUSB_INIT;
+	        return false;
+	}
 
 	if (!controller) {
 		error = ERROR_NO_DEVICE;
@@ -93,7 +91,12 @@ bool mj9k::send_lights() {
 	usb_ret = libusb_interrupt_transfer(controller, MJ9K_OUT,
 		(unsigned char *)&status_out, sizeof(mj9k_out_report), &transfered, MJ9K_TIMEOUT);
 
-	if (!usb_ret) {
+	if (usb_ret != LIBUSB_SUCCESS) {
+	        if (usb_ret == LIBUSB_ERROR_IO || usb_ret == LIBUSB_ERROR_NO_DEVICE) {
+                        libusb_close(controller);
+	                controller = NULL;
+	        }
+	
 		error = ERROR_LIBUSB;
 		return false;
 	}
@@ -108,7 +111,10 @@ bool mj9k::send_lights() {
 }
 
 bool mj9k::recieve_input() {
-        if (!libusb_initialized) return false;
+        if (!libusb_initialized) {
+	        error = ERROR_LIBUSB_INIT;
+	        return false;
+	}
 
         if (!controller) {
             error = ERROR_NO_DEVICE;
@@ -119,7 +125,12 @@ bool mj9k::recieve_input() {
 	usb_ret = libusb_interrupt_transfer(controller, MJ9K_IN,
 		(unsigned char *)&status_in, sizeof(mj9k_in_report), &transfered, MJ9K_TIMEOUT);
 
-	if (!usb_ret) {
+	if (usb_ret != LIBUSB_SUCCESS) {
+	        if (usb_ret == LIBUSB_ERROR_IO || usb_ret == LIBUSB_ERROR_NO_DEVICE) {
+                        libusb_close(controller);
+	                controller = NULL;
+	        }
+	        
 		error = ERROR_LIBUSB;
 		return false;
 	}
@@ -196,14 +207,11 @@ int mj9k::get_shifter() const {
 
 String mj9k::get_error() const {
 	switch (error) {
-	case ERROR_NO_DEVICE:
-		return "A MJ9K is not connected";
-	case ERROR_BAD_RX:
-		return "Failed to recieve all bytes from MJ9K";
-	case ERROR_BAD_TX:
-		return "Failed to send all bytes to MJ9K";
-	case ERROR_LIBUSB:
-		return libusb_strerror(usb_ret);
+	case ERROR_NO_DEVICE: return "A MJ9K is not connected";
+	case ERROR_BAD_RX: return "Failed to recieve all bytes from MJ9K";
+	case ERROR_BAD_TX: return "Failed to send all bytes to MJ9K";
+        case ERROR_LIBUSB_INIT: return "LibUSB is not initialized";
+	case ERROR_LIBUSB: return libusb_strerror(usb_ret);
 	}
 
 	return "";
@@ -236,6 +244,7 @@ void mj9k::_bind_methods() {
 	BIND_ENUM_CONSTANT(ERROR_NO_DEVICE);
 	BIND_ENUM_CONSTANT(ERROR_BAD_RX);
 	BIND_ENUM_CONSTANT(ERROR_BAD_TX);
+	BIND_ENUM_CONSTANT(ERROR_LIBUSB_INIT);
 	BIND_ENUM_CONSTANT(ERROR_LIBUSB);
 	
 	BIND_ENUM_CONSTANT(PEDAL_ACCEL);
@@ -348,6 +357,7 @@ void uninitialize_mj9k_module(ModuleInitializationLevel p_level) {
 
 	if (libusb_initialized) {
 		libusb_exit(NULL);
+		libusb_initialized = false;
 	}
 }
 
